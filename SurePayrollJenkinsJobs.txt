@@ -1,0 +1,76 @@
+Clientek Project Job:
+
+Execute Windows Batch Command:
+
+
+"C:\Users\sureadmin\Desktop\nuget.exe" restore "Code\AOS.sln"
+"C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\amd64\MSBuild.exe" "C:\Users\sureadmin\.jenkins\workspace\Clientek Project\Code\AOS.sln" /p:Configuration=Debug
+
+
+Windows Powershell 1:
+
+$ServiceName = "Payroll Office Service Host"
+$service = get-wmiobject win32_service |  where { $_.name -eq $ServiceName}
+$status = $service.State
+   if($status -eq 'Running')
+   {
+          Stop-Process -Name "PayrollOfficeServiceHost" -Force
+   }
+
+Copy-Item  -Path "C:\Users\sureadmin\.jenkins\workspace\Clientek Project\Code\bin\Debug\Service\*" -Destination "C:\Program Files (x86)\America OnShore\Payroll Office Service Host\" -Recurse -Include "*.dll" -force
+Start-Service -Name $ServiceName
+
+
+Windows Powershell 2:
+
+$time = Get-Date -Format o | foreach {$_ -replace ":", "."}
+
+ $PublishUrl = "C:\PubURL"
+
+ md "$PublishUrl\$($time)"
+
+ $PublishPath = "$PublishUrl\$($time)"
+
+
+
+$MsBuild = "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\amd64\MSBuild.exe"
+
+$ProjectPath = "C:\Users\sureadmin\.jenkins\workspace\CodeFromGithub\Code\Source\AOS.PayrollOffice.WebUI\website.publishproj"
+
+$AspNetMergePath = "C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1A\bin\NETFX 4.5.1 Tools"
+
+$PublishProfile = "C:\Users\sureadmin\.jenkins\workspace\Clientek Project\Code\Source\AOS.PayrollOffice.WebUI\App_Data\PublishProfiles\SurePayRoll_PublishProfile.pubxml"
+
+"$MsBuild" "$ProjectPath" /p:DeployOnBuild=true /p:PublishProfile="$PublishProfile"  /p:publishUrl="$PublishPath" /p:AspnetMergePath=$AspNetMergePath
+
+
+
+QA_Env Job:
+
+$VmUserName = "sureadmin"    
+$VmPassword = "sXysKzUq!ePk" | ConvertTo-SecureString -AsPlainText -Force
+$VmCredentials = New-Object Management.Automation.PSCredential -ArgumentList $VmUserName, $VmPassword 
+$Server = "surepayrollstag.cloudapp.net"
+
+Try
+{
+    New-PsDrive -Name X -PSProvider FileSystem -Root \\$($Server)\c$ -Credential $VmCredentials -ErrorAction Stop
+}
+Catch
+{
+   Write-Host "Error in Creating New-psDrive"
+   Write-Host "$($Error)"
+   Exit 1
+}
+$ServiceName = "Payroll Office Service Host"
+$service = get-wmiobject win32_service |  where { $_.name -eq $ServiceName}
+$status = $service.State
+   if($status -eq 'Running')
+   {
+          Write-Host "Service is running"
+          Stop-Process -Name "PayrollOfficeServiceHost" -Force
+   }
+
+Copy-Item  -Path "C:\Users\sureadmin\.jenkins\workspace\Clientek Project\Code\bin\Debug\Service\*" -Destination "X:\Program Files (x86)\America OnShore\Payroll Office Service Host\" -Recurse -Include "*.dll" -force
+Start-Service -Name $ServiceName
+Remove-PSDrive X
